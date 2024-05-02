@@ -5,6 +5,7 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from sklearn.metrics import accuracy_score
 import numpy as np
 # Load the saved MobileNet model
+#Load
 model = load_model("model/Mobilenet.h5")
 
 # Load and preprocess the test data
