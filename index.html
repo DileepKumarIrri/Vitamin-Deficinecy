@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vitamin Deficiency Prediction</title>
+    <style>
+        body {
+            font-family: Georgia, serif;
+            text-align: center;
+            color: white;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: url("assets/vitaminsbackground_LE_upscale_balanced_x4.jpg") no-repeat center center/cover; /* Replace with the path to your local image */
+            
+        }
+        h2 {
+            /* color: #f0f8ff;  */
+            font-size: 40px;
+            text-shadow: 
+                -1px -1px 0 black, 
+                 1px -1px 0 black, 
+                -1px  1px 0 black, 
+                 1px  1px 0 black; 
+        }
+        label, p {
+            /* color: #e0ffff;  */
+            font-size:20px;
+            text-shadow: 
+                -1px -1px 0 black, 
+                 1px -1px 0 black, 
+                -1px  1px 0 black, 
+                 1px  1px 0 black; 
+        } 
+        .container {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+            align-items: flex-start; /* Align items to the top */
+        }
+        .option-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            border: 2px solid #007bff;
+            backdrop-filter: blur(5px);
+            padding: 20px;
+            border-radius: 10px;
+            width: 350px;
+            background: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .button-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        button:disabled {
+            background-color: gray;
+            cursor: not-allowed;
+        }
+        button:not(:disabled) {
+            background-color: #007bff;
+            color: white;
+        }
+        button:not(:disabled):hover {
+            background-color: #0056b3;
+        }
+        #result-container {
+            display: none;
+            flex-direction: row;
+            align-items: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        #result {
+            border: 2px solid #007bff;
+            padding: 15px;
+            width: 350px;
+            text-align: left;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            color: #000080; /* Navy */
+        }
+        video, canvas, img {
+            border: 2px solid #007bff;
+            border-radius: 10px;
+            margin-top: 10px;
+            width: 300px;
+            height: 200px;
+        }
+        .radio-container {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Predict Vitamin Deficiency Using Image Analysis</h2>
+    <div class="radio-container">
+        <label><input type="radio" name="imageSource" value="upload" onclick="showOption('upload')"> Upload Image</label>
+        <label><input type="radio" name="imageSource" value="capture" onclick="showOption('capture')"> Capture Image</label>
+    </div>
+
+    <div class="container">
+        <div id="uploadContainer" class="option-container">
+            <label>
+                📁<br>
+                <input type="file" id="uploadInput" accept="image/*" hidden onchange="handleUpload()">
+            </label>
+            <p>Upload Image</p>
+            <p id="filePath"></p>
+            <img id="previewUpload" style="display:none;" alt="Uploaded Image Preview">
+            <div class="button-container">
+                <button id="uploadBtn" onclick="uploadImage()">Upload</button>
+                <button id="getDetailsUploadBtn" onclick="getDetails('upload')" disabled>Get Details</button>
+            </div>
+        </div>
+
+        <div id="captureContainer" class="option-container">
+            <select id="cameraSelect" onchange="startCamera()">
+                <option value="user">Front Camera</option>
+                <option value="environment">Rear Camera</option>
+            </select>
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas" style="display:none;"></canvas>
+            <img id="capturedImage" style="display:none;" alt="Captured Image Preview">
+            <div class="button-container">
+                <button id="captureBtn" onclick="captureImage()">Capture Image</button>
+                <button id="getDetailsCaptureBtn" onclick="getDetails()" disabled>Get Details</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="result-container">
+        <div id="result">Image Details will appear here...</div>
+    </div>
+
+    <script>
+        let stream = null;
+        function showOption(option) {
+            document.getElementById('uploadContainer').style.display = option === 'upload' ? 'flex' : 'none';
+            document.getElementById('captureContainer').style.display = option === 'capture' ? 'flex' : 'none';
+            document.getElementById('result-container').style.display = 'none';
+            if (option === 'capture') startCamera();
+            else stopCamera();
+        }
+
+        function startCamera() {
+            stopCamera();
+            let cameraMode = document.getElementById('cameraSelect').value;
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: cameraMode } })
+                .then(camStream => {
+                    stream = camStream;
+                    document.getElementById('video').srcObject = stream;
+                })
+                .catch(err => alert("Camera access error: " + err.message));
+        }
+
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+        }
+
+        function captureImage() {
+            let canvas = document.getElementById('canvas');
+            let context = canvas.getContext('2d');
+            context.drawImage(document.getElementById('video'), 0, 0, canvas.width, canvas.height);
+            let imageData = canvas.toDataURL('image/png');
+            document.getElementById('capturedImage').src = imageData;
+            document.getElementById('capturedImage').style.display = 'block';
+            document.getElementById('video').style.display = 'none';
+            document.getElementById('getDetailsCaptureBtn').disabled = false;
+        }
+
+        function handleUpload() {
+            let file = document.getElementById('uploadInput').files[0];
+            if (file) {
+                document.getElementById('filePath').innerText = file.name;
+                document.getElementById('previewUpload').src = URL.createObjectURL(file);
+                document.getElementById('previewUpload').style.display = 'block';
+                document.getElementById('uploadBtn').disabled = false;
+            }
+        }
+
+        function uploadImage() {
+            document.getElementById('getDetailsUploadBtn').disabled = false;
+        }
+
+        function getDetails(source) {
+            document.getElementById('result-container').style.display = 'flex';
+            if (source === 'upload') {
+                document.getElementById('result').innerText = 'Details for uploaded image...';
+            } else {
+                document.getElementById('result').innerText = 'Details for captured image...';
+            }
+        }
+    </script>
+</body>
+</html>
